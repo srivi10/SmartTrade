@@ -12,17 +12,17 @@ import java.util.ArrayList;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
-
 public class StopTrail extends JFrame {
     private JComboBox<String> cryptoDropdown;
     private JTextField priceField, orderSizeField, trailingPercentageField, setTrailingField, resistanceField, supportField;
     private JTextField resistancePercentField, supportPercentField, resistanceDiffField, supportDiffField;
+    private JTextField percentageCalculatorField;
+    private JLabel resultLabel, percentageResultLabel;
     private JRadioButton lastRadioButton;
-    private JLabel resultLabel;
 
     public StopTrail() {
         setTitle("Crypto Trailing Stop Calculator");
-        setSize(600, 500);
+        setSize(600, 600);
         setLayout(null); // Use null layout for absolute positioning
 
         // Back Button
@@ -31,7 +31,8 @@ public class StopTrail extends JFrame {
         backButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 dispose(); // Close the current window
-                new HomeScreen(); // Open the HomeScreen
+                HomeScreen.getInstance(); // Open the singleton instance of HomeScreen
+                // Open the HomeScreen
             }
         });
         add(backButton);
@@ -51,7 +52,7 @@ public class StopTrail extends JFrame {
         cryptoLabel.setBounds(10, 50, 120, 30);
         add(cryptoLabel);
 
-        cryptoDropdown = new JComboBox<>(new String[] {"Select", "bitcoin", "ethereum", "tether", "binancecoin", "usd-coin", "ripple", "cardano", "dogecoin", "solana", "tron", "polkadot", "polygon", "litecoin", "shiba-inu", "avalanche-2", "dai", "wrapped-bitcoin", "uniswap", "chainlink", "leo-token"});
+        cryptoDropdown = new JComboBox<>(new String[] {"Select", "bitcoin", "ethereum", "solana", "binancecoin", "sui", "ripple","jupiter", "cardano", "dogecoin", "tron", "polkadot", "polygon", "litecoin", "shiba-inu", "avalanche-2", "dai", "wrapped-bitcoin", "uniswap", "chainlink", "leo-token"});
         cryptoDropdown.setBounds(140, 50, 150, 30);
         cryptoDropdown.setSelectedIndex(0);
         cryptoDropdown.addActionListener(new ActionListener() {
@@ -173,11 +174,32 @@ public class StopTrail extends JFrame {
         resultLabel.setBounds(140, 410, 300, 30);
         add(resultLabel);
 
+        // Percentage Calculator
+        JLabel percentageCalculatorLabel = new JLabel("Percentage Calculator:");
+        percentageCalculatorLabel.setBounds(10, 450, 150, 30);
+        add(percentageCalculatorLabel);
+
+        percentageCalculatorField = new JTextField();
+        percentageCalculatorField.setBounds(170, 450, 100, 30);
+        add(percentageCalculatorField);
+
+        JButton percentageSubmitButton = new JButton("Submit");
+        percentageSubmitButton.setBounds(280, 450, 80, 30);
+        percentageSubmitButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                calculatePercentage();
+            }
+        });
+        add(percentageSubmitButton);
+
+        percentageResultLabel = new JLabel("");
+        percentageResultLabel.setBounds(370, 450, 200, 30);
+        add(percentageResultLabel);
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setVisible(true);
     }
 
-    // Fetch current price from API
     private void fetchCurrentPrice(String cryptoName) {
         String uri = "https://api.coingecko.com/api/v3/simple/price";
         List<NameValuePair> parameters = new ArrayList<NameValuePair>();
@@ -199,7 +221,6 @@ public class StopTrail extends JFrame {
         }
     }
 
-    // Fetch resistance and support levels from API
     private void fetchResistanceSupportLevels(String cryptoName) {
         String uri = "https://api.coingecko.com/api/v3/coins/" + cryptoName + "/market_chart";
         List<NameValuePair> parameters = new ArrayList<NameValuePair>();
@@ -268,11 +289,33 @@ public class StopTrail extends JFrame {
         }
     }
 
+    private void calculatePercentage() {
+        try {
+            String input = percentageCalculatorField.getText();
+            double currentPrice = Double.parseDouble(priceField.getText());
+            double result = 0;
+
+            if (input.endsWith("%")) {
+                double percentage = Double.parseDouble(input.replace("%", ""));
+                result = currentPrice + (currentPrice * (percentage / 100));
+            } else if (input.startsWith("+") || input.startsWith("-")) {
+                double amount = Double.parseDouble(input);
+                result = currentPrice + amount;
+            } else {
+                showErrorDialog("Invalid input. Please enter a valid percentage or dollar amount.");
+                return;
+            }
+
+            percentageResultLabel.setText(String.format("Result: %.2f", result));
+        } catch (NumberFormatException e) {
+            showErrorDialog("Invalid input. Please enter a valid number.");
+        }
+    }
+
     private void showErrorDialog(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    // Perform calculations
     private void calculateTrailingStop() {
         try {
             String priceText = priceField.getText();
@@ -302,7 +345,6 @@ public class StopTrail extends JFrame {
         }
     }
 
-    // Reset all fields except Trailing Percentage
     private void resetFields() {
         cryptoDropdown.setSelectedIndex(0);
         priceField.setText("");
@@ -315,6 +357,8 @@ public class StopTrail extends JFrame {
         resistanceDiffField.setText("");
         supportDiffField.setText("");
         resultLabel.setText("");
+        percentageCalculatorField.setText("");
+        percentageResultLabel.setText("");
     }
 
     public static void main(String[] args) {

@@ -5,7 +5,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 public class HomeScreen extends JFrame {
-    public HomeScreen() {
+    private static HomeScreen instance;
+
+    private HomeScreen() {
         setTitle("Home Screen");
         setSize(400, 200);
         setLayout(null); // Use null layout for absolute positioning
@@ -34,7 +36,14 @@ public class HomeScreen extends JFrame {
         setVisible(true);
     }
 
+    public static HomeScreen getInstance() {
+        if (instance == null) {
+            instance = new HomeScreen();
+        }
+        return instance;
+    }
+
     public static void main(String[] args) {
-        new HomeScreen();
+        HomeScreen.getInstance();
     }
 }

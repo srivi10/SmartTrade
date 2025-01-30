@@ -19,9 +19,14 @@ import org.json.JSONObject;
 
 public class MarketAnalysis extends JFrame {
     private JComboBox<String> cryptoDropdown;
+    private JComboBox<String> groupDropdown;
     private JTextField searchField;
     private JTable cryptoTable;
     private DefaultTableModel tableModel;
+
+    private static final String[] GROUP_1 = {"bitcoin", "ethereum", "binancecoin", "ripple", "cardano"};
+    private static final String[] GROUP_2 = {"dogecoin", "solana", "tron", "polkadot", "polygon"};
+    private static final String[] GROUP_3 = {"litecoin", "jupiter", "avalanche-2", "dai", "wrapped-bitcoin"};
 
     public MarketAnalysis() {
         setTitle("Market Analysis");
@@ -34,21 +39,46 @@ public class MarketAnalysis extends JFrame {
         add(cryptoLabel);
 
         cryptoDropdown = new JComboBox<>(new String[]{
-            "Select", "bitcoin", "ethereum", "tether", "binancecoin", "usd-coin",
-            "ripple", "cardano", "dogecoin", "solana", "tron", "polkadot",
+            "Select", "bitcoin", "ethereum", "solana", "jupiter", "sui",
+            "ripple", "cardano", "dogecoin","tron", "polkadot",
             "polygon", "litecoin", "shiba-inu", "avalanche-2", "dai",
-            "wrapped-bitcoin", "uniswap", "chainlink", "leo-token"
+            "binancecoin", "uniswap", "chainlink", "leo-token"
         });
         cryptoDropdown.setBounds(170, 10, 150, 30);
         cryptoDropdown.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String selectedCrypto = (String) cryptoDropdown.getSelectedItem();
                 if (!"Select".equals(selectedCrypto)) {
-                    fetchCryptoData(selectedCrypto);
+                    fetchCryptoData(new String[]{selectedCrypto});
                 }
             }
         });
         add(cryptoDropdown);
+
+        // Dropdown for Group
+        JLabel groupLabel = new JLabel("Select Group:");
+        groupLabel.setBounds(330, 10, 150, 30);
+        add(groupLabel);
+
+        groupDropdown = new JComboBox<>(new String[]{"Select", "Group 1", "Group 2", "Group 3"});
+        groupDropdown.setBounds(490, 10, 150, 30);
+        groupDropdown.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String selectedGroup = (String) groupDropdown.getSelectedItem();
+                switch (selectedGroup) {
+                    case "Group 1":
+                        fetchCryptoData(GROUP_1);
+                        break;
+                    case "Group 2":
+                        fetchCryptoData(GROUP_2);
+                        break;
+                    case "Group 3":
+                        fetchCryptoData(GROUP_3);
+                        break;
+                }
+            }
+        });
+        add(groupDropdown);
 
         // Search Field
         JLabel searchLabel = new JLabel("Search Crypto:");
@@ -66,11 +96,22 @@ public class MarketAnalysis extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 String searchText = searchField.getText();
                 if (!searchText.isEmpty()) {
-                    fetchCryptoData(searchText);
+                    fetchCryptoData(new String[]{searchText.toLowerCase().replace(" ", "-")});
                 }
             }
         });
         add(submitButton);
+
+        // Reset Button
+        JButton resetButton = new JButton("Reset");
+        resetButton.setBounds(760, 50, 100, 30);
+        resetButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                tableModel.setRowCount(0); // Clear the table
+            }
+        });
+        add(resetButton);
+
 
         // Copy Table Button
         JButton copyTableButton = new JButton("Copy Table");
@@ -88,13 +129,13 @@ public class MarketAnalysis extends JFrame {
         backButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 dispose();
-                new HomeScreen();
+              HomeScreen.getInstance();
             }
         });
         add(backButton);
 
         // Table for displaying crypto data
-        String[] columnNames = {"Crypto Name", "Current Price", "Resistance Level", "Resistance Level %", "Resistance Diff", "Support Level", "Support Level %", "Support Diff", "50 DMA", "100 DMA", "24h Volume", "Volume %", "Copy"};
+        String[] columnNames = {"Crypto Name", "Current Price", "Resistance Level", "Resistance Level %", "Resistance Diff", "Support Level", "Support Level %", "Support Diff", "50 DMA", "100 DMA", "24h Volume", "Volume %", "RSI", "Copy"};
         tableModel = new DefaultTableModel(columnNames, 0);
         cryptoTable = new JTable(tableModel);
         JScrollPane scrollPane = new JScrollPane(cryptoTable);
@@ -107,12 +148,12 @@ public class MarketAnalysis extends JFrame {
         cryptoTable.getColumnModel().getColumn(11).setCellRenderer(new PercentageCellRenderer());
 
         // Set custom cell renderer for copy icon
-        cryptoTable.getColumnModel().getColumn(12).setCellRenderer(new CopyIconCellRenderer());
+        cryptoTable.getColumnModel().getColumn(13).setCellRenderer(new CopyIconCellRenderer());
         cryptoTable.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
                 int row = cryptoTable.rowAtPoint(e.getPoint());
                 int col = cryptoTable.columnAtPoint(e.getPoint());
-                if (col == 12) {
+                if (col == 13) {
                     copyRowToClipboard(row);
                 }
             }
@@ -122,72 +163,107 @@ public class MarketAnalysis extends JFrame {
         setVisible(true);
     }
 
-    private void fetchCryptoData(String cryptoName) {
-        String uri = "https://api.coingecko.com/api/v3/coins/" + cryptoName + "/market_chart?vs_currency=cad&days=100";
+    private void fetchCryptoData(String[] cryptoNames) {
+        for (String cryptoName : cryptoNames) {
+            String uri = "https://api.coingecko.com/api/v3/coins/" + cryptoName + "/market_chart?vs_currency=cad&days=1"; // Fetch 100 days for 100 DMA
+            try {
+                String result = makeAPICallWithRetry(uri, new ArrayList<>());
+                JSONObject jsonResponse = new JSONObject(result);
 
-        try {
-            String result = makeAPICallWithRetry(uri, new ArrayList<>());
-            JSONObject jsonResponse = new JSONObject(result);
+                if (jsonResponse.has("prices") && jsonResponse.has("total_volumes")) {
+                    JSONArray prices = jsonResponse.getJSONArray("prices");
+                    JSONArray volumes = jsonResponse.getJSONArray("total_volumes");
 
-            if (jsonResponse.has("prices") && jsonResponse.has("total_volumes")) {
-                JSONArray prices = jsonResponse.getJSONArray("prices");
-                JSONArray volumes = jsonResponse.getJSONArray("total_volumes");
+                    double currentPrice = prices.getJSONArray(prices.length() - 1).getDouble(1);
+                    double volume24h = volumes.getJSONArray(volumes.length() - 1).getDouble(1);
+                    double previousVolume = volumes.getJSONArray(volumes.length() - 2).getDouble(1);
+                    double volumePercent = ((volume24h - previousVolume) / previousVolume) * 100;
 
-                double currentPrice = prices.getJSONArray(prices.length() - 1).getDouble(1);
-                double volume24h = volumes.getJSONArray(volumes.length() - 1).getDouble(1);
-                double previousVolume = volumes.getJSONArray(volumes.length() - 2).getDouble(1);
-                double volumePercent = ((volume24h - previousVolume) / previousVolume) * 100;
+                    // ** Resistance & Support Calculation **
+                    double resistance = 0;
+                    double support = Double.MAX_VALUE;
+                    List<Double> closingPrices = new ArrayList<>();
 
-                double resistance = 0;
-                double support = Double.MAX_VALUE;
-                double sum50 = 0;
-                double sum100 = 0;
-
-                for (int i = 0; i < prices.length(); i++) {
-                    double price = prices.getJSONArray(i).getDouble(1);
-                    if (price > resistance) {
-                        resistance = price;
+                    for (int i = 0; i < prices.length(); i++) {
+                        double price = prices.getJSONArray(i).getDouble(1);
+                        closingPrices.add(price);
+                        resistance = Math.max(resistance, price);
+                        support = Math.min(support, price);
                     }
-                    if (price < support) {
-                        support = price;
-                    }
-                    if (i >= prices.length() - 50) {
-                        sum50 += price;
-                    }
-                    sum100 += price;
+
+                    // ** Moving Average Calculations (50 DMA & 100 DMA) **
+                    double dma50 = calculateMovingAverage(closingPrices, 50);
+                    double dma100 = calculateMovingAverage(closingPrices, 100);
+
+                    // ** RSI Calculation (14-day period) **
+                    double rsi = calculateRSI(closingPrices, 14);
+
+                    // ** Percentage & Difference Calculation **
+                    double resistancePercent = ((resistance - currentPrice) / currentPrice) * 100;
+                    double supportPercent = ((currentPrice - support) / currentPrice) * 100;
+                    double resistanceDiff = resistance - currentPrice;
+                    double supportDiff = support - currentPrice;
+
+                    // ** Adding Data to Table Model **
+                    tableModel.addRow(new Object[]{
+                            cryptoName,
+                            formatNumber(currentPrice),
+                            formatNumber(resistance),
+                            String.format("%+.2f%%", resistancePercent),
+                            formatNumber(resistanceDiff),
+                            formatNumber(support),
+                            String.format("%+.2f%%", -supportPercent),
+                            formatNumber(supportDiff),
+                            formatNumber(dma50),  // 50 DMA
+                            formatNumber(dma100), // 100 DMA
+                            formatNumber(volume24h),
+                            String.format("%+.2f%%", volumePercent),
+                            formatNumber(rsi), // RSI
+                            "Copy"
+                    });
+                } else {
+                    showErrorDialog("Data not found for " + cryptoName);
                 }
-
-                double fiftyDMA = sum50 / 50;
-                double hundredDMA = sum100 / 100;
-
-                double resistancePercent = ((resistance - currentPrice) / currentPrice) * 100;
-                double supportPercent = ((currentPrice - support) / currentPrice) * 100;
-                double resistanceDiff = resistance - currentPrice;
-                double supportDiff = support - currentPrice;
-
-                tableModel.addRow(new Object[]{
-                        cryptoName,
-                        formatNumber(currentPrice),
-                        formatNumber(resistance),
-                        String.format("%+.2f%%", resistancePercent),
-                        formatNumber(resistanceDiff),
-                        formatNumber(support),
-                        String.format("%+.2f%%", -supportPercent),
-                        formatNumber(supportDiff),
-                        formatNumber(fiftyDMA),
-                        formatNumber(hundredDMA),
-                        formatNumber(volume24h),
-                        String.format("%+.2f%%", volumePercent),
-                        "Copy"
-                });
-            } else {
-                showErrorDialog("Data not found for " + cryptoName);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                showErrorDialog("Error fetching data for " + cryptoName + ": " + ex.getMessage());
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            showErrorDialog("Error fetching data for " + cryptoName + ": " + ex.getMessage());
         }
     }
+
+    // Calculate Moving Average (DMA)
+    private double calculateMovingAverage(List<Double> prices, int period) {
+        if (prices.size() < period) return Double.NaN;
+        double sum = 0;
+        for (int i = prices.size() - period; i < prices.size(); i++) {
+            sum += prices.get(i);
+        }
+        return sum / period;
+    }
+
+    // Calculate RSI (Relative Strength Index)
+    private double calculateRSI(List<Double> prices, int period) {
+        if (prices.size() < period + 1) return Double.NaN;
+
+        double gain = 0, loss = 0;
+        for (int i = prices.size() - period; i < prices.size(); i++) {
+            double change = prices.get(i) - prices.get(i - 1);
+            if (change > 0) {
+                gain += change;
+            } else {
+                loss -= change;
+            }
+        }
+
+        double avgGain = gain / period;
+        double avgLoss = loss / period;
+
+        if (avgLoss == 0) return 100; // RSI is 100 if no losses
+
+        double rs = avgGain / avgLoss;
+        return 100 - (100 / (1 + rs));
+    }
+
 
     private String makeAPICallWithRetry(String uri, List<NameValuePair> parameters) throws Exception {
         int maxRetries = 5;
@@ -233,21 +309,21 @@ public class MarketAnalysis extends JFrame {
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
     }
 
- private void copyTableToClipboard() {
-    StringBuilder tableData = new StringBuilder();
-    for (int col = 0; col < tableModel.getColumnCount() - 1; col++) {
-        tableData.append(tableModel.getColumnName(col)).append(", ");
-    }
-    tableData.append("\n");
-    for (int row = 0; row < tableModel.getRowCount(); row++) {
+    private void copyTableToClipboard() {
+        StringBuilder tableData = new StringBuilder();
         for (int col = 0; col < tableModel.getColumnCount() - 1; col++) {
-            tableData.append(tableModel.getColumnName(col)).append(": ").append(tableModel.getValueAt(row, col)).append(", ");
+            tableData.append(tableModel.getColumnName(col)).append(", ");
         }
         tableData.append("\n");
+        for (int row = 0; row < tableModel.getRowCount(); row++) {
+            for (int col = 0; col < tableModel.getColumnCount() - 1; col++) {
+                tableData.append(tableModel.getColumnName(col)).append(": ").append(tableModel.getValueAt(row, col)).append(", ");
+            }
+            tableData.append("\n");
+        }
+        StringSelection stringSelection = new StringSelection(tableData.toString());
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
     }
-    StringSelection stringSelection = new StringSelection(tableData.toString());
-    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
-}
 
     // Custom cell renderer for percentage columns
     class PercentageCellRenderer extends DefaultTableCellRenderer {

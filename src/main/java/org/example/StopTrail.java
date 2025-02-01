@@ -16,13 +16,13 @@ public class StopTrail extends JFrame {
     private JComboBox<String> cryptoDropdown;
     private JTextField priceField, orderSizeField, trailingPercentageField, setTrailingField, resistanceField, supportField;
     private JTextField resistancePercentField, supportPercentField, resistanceDiffField, supportDiffField;
-    private JTextField percentageCalculatorField;
-    private JLabel resultLabel, percentageResultLabel;
+    private JTextField percentageCalculatorField, buyPriceField, sellPriceField;
+    private JLabel resultLabel, percentageResultLabel, profitResultLabel;
     private JRadioButton lastRadioButton;
 
     public StopTrail() {
         setTitle("Crypto Trailing Stop Calculator");
-        setSize(600, 600);
+        setSize(700, 600);
         setLayout(null); // Use null layout for absolute positioning
 
         // Back Button
@@ -171,7 +171,7 @@ public class StopTrail extends JFrame {
         add(resultTextLabel);
 
         resultLabel = new JLabel("");
-        resultLabel.setBounds(140, 410, 300, 30);
+        resultLabel.setBounds(140, 410, 400, 30);
         add(resultLabel);
 
         // Percentage Calculator
@@ -195,6 +195,36 @@ public class StopTrail extends JFrame {
         percentageResultLabel = new JLabel("");
         percentageResultLabel.setBounds(370, 450, 200, 30);
         add(percentageResultLabel);
+
+        // Buy Price and Sell Price Fields
+        JLabel buyPriceLabel = new JLabel("Buy Price:");
+        buyPriceLabel.setBounds(10, 490, 120, 30);
+        add(buyPriceLabel);
+
+        buyPriceField = new JTextField();
+        buyPriceField.setBounds(140, 490, 150, 30);
+        add(buyPriceField);
+
+        JLabel sellPriceLabel = new JLabel("Sell Price:");
+        sellPriceLabel.setBounds(10, 530, 120, 30);
+        add(sellPriceLabel);
+
+        sellPriceField = new JTextField();
+        sellPriceField.setBounds(140, 530, 150, 30);
+        add(sellPriceField);
+
+        JButton calculateProfitButton = new JButton("Calculate Profit");
+        calculateProfitButton.setBounds(300, 510, 150, 30);
+        calculateProfitButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                calculateProfitOrLoss();
+            }
+        });
+        add(calculateProfitButton);
+
+        profitResultLabel = new JLabel("");
+        profitResultLabel.setBounds(460, 510, 200, 30);
+        add(profitResultLabel);
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setVisible(true);
@@ -312,6 +342,23 @@ public class StopTrail extends JFrame {
         }
     }
 
+   private void calculateProfitOrLoss() {
+    try {
+        double buyPrice = Double.parseDouble(buyPriceField.getText());
+        double sellPrice = Double.parseDouble(sellPriceField.getText());
+        double profitOrLoss = sellPrice - buyPrice;
+        double profitOrLossPercent = (profitOrLoss / buyPrice) * 100;
+        profitResultLabel.setText(String.format("Profit/Loss: %.2f (%.2f%%)", profitOrLoss, profitOrLossPercent));
+        if (profitOrLoss > 0) {
+            profitResultLabel.setForeground(new Color(0, 100, 0)); // Dark Green for profit
+        } else {
+            profitResultLabel.setForeground(Color.RED); // Red for loss
+        }
+    } catch (NumberFormatException e) {
+        showErrorDialog("Invalid input. Please enter valid numbers.");
+    }
+}
+
     private void showErrorDialog(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
@@ -359,6 +406,9 @@ public class StopTrail extends JFrame {
         resultLabel.setText("");
         percentageCalculatorField.setText("");
         percentageResultLabel.setText("");
+        buyPriceField.setText("");
+        sellPriceField.setText("");
+        profitResultLabel.setText("");
     }
 
     public static void main(String[] args) {
